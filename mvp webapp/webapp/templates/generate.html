@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Report - Container Inspection System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <img src="{{ url_for('static', filename='images/quest-marine-logo.png') }}" alt="Quest Marine LLC" class="nav-logo">
+                <h2>Container Inspection System</h2>
+            </div>
+            <div class="nav-menu">
+                <a href="{{ url_for('upload') }}" class="nav-link">Upload</a>
+                <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
+                <span class="nav-user">👤 {{ username }}</span>
+                <a href="{{ url_for('logout') }}" class="nav-link">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="page-header">
+            <h1>Generate Inspection Report</h1>
+            <p>Review case details and generate final report</p>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <!-- Case Summary -->
+        <div class="case-summary">
+            <h2>Case Summary</h2>
+            <div class="summary-grid">
+                <div class="summary-item">
+                    <strong>Case Reference:</strong>
+                    <span>{{ case.case_reference }}</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Container Number:</strong>
+                    <span>{{ case.container_number }}</span>
+                </div>
+                <div class="summary-item">
+                    <strong>B/L Number:</strong>
+                    <span>{{ case.bl_number }}</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Goods Description:</strong>
+                    <span>{{ case.goods_description }}</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Shipper:</strong>
+                    <span>{{ case.shipper }}</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Consignee:</strong>
+                    <span>{{ case.consignee }}</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Created By:</strong>
+                    <span>{{ case.created_by }}</span>
+                </div>
+                <div class="summary-item">
+                    <strong>Created At:</strong>
+                    <span>{{ case.created_at[:19] }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Uploaded Documents -->
+        <div class="documents-section">
+            <h2>Uploaded Documents</h2>
+            <div class="documents-list">
+                {% if case.documents.bill_of_lading %}
+                <div class="doc-item">
+                    <span class="doc-icon">✓</span>
+                    <span class="doc-name">Bill of Lading</span>
+                    <span class="doc-file">{{ case.documents.bill_of_lading }}</span>
+                </div>
+                {% endif %}
+
+                {% if case.documents.commercial_invoice %}
+                <div class="doc-item">
+                    <span class="doc-icon">✓</span>
+                    <span class="doc-name">Commercial Invoice</span>
+                    <span class="doc-file">{{ case.documents.commercial_invoice }}</span>
+                </div>
+                {% endif %}
+
+                {% if case.documents.packing_list %}
+                <div class="doc-item">
+                    <span class="doc-icon">✓</span>
+                    <span class="doc-name">Packing List</span>
+                    <span class="doc-file">{{ case.documents.packing_list }}</span>
+                </div>
+                {% endif %}
+
+                {% if case.documents.iauditor_report %}
+                <div class="doc-item">
+                    <span class="doc-icon">✓</span>
+                    <span class="doc-name">iAuditor / Safety Culture Inspection Reports</span>
+                    <span class="doc-file">{{ case.documents.iauditor_report }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Generate Report Button -->
+        <div class="generate-section">
+            <button id="generateBtn" class="btn btn-success btn-large" onclick="generateReport()">
+                📝 Generate Final Report
+            </button>
+
+            <div id="loading" class="loading-spinner" style="display: none;">
+                <div class="spinner"></div>
+                <p>Generating report... Please wait</p>
+            </div>
+
+            <div id="result" class="result-section" style="display: none;">
+                <div class="success-message">
+                    <h3>✓ Report Generated Successfully!</h3>
+                    <p id="result-message"></p>
+                    <a id="download-link" href="#" class="btn btn-primary">
+                        ⬇️ Download Report
+                    </a>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                        View Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function generateReport() {
+            const caseRef = '{{ case.case_reference }}';
+            const generateBtn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            const alertContainer = document.getElementById('alert-container');
+
+            // Disable button and show loading
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+            loading.style.display = 'block';
+            result.style.display = 'none';
+            alertContainer.innerHTML = '';
+
+            // Make API call to generate report
+            fetch(`/api/generate-report/${caseRef}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+
+                if (data.success) {
+                    // Show success result
+                    document.getElementById('result-message').textContent = data.message;
+                    document.getElementById('download-link').href = data.download_url;
+                    result.style.display = 'block';
+                } else {
+                    // Show error
+                    alertContainer.innerHTML = `
+                        <div class="alert alert-error">
+                            Error: ${data.error || 'Failed to generate report'}
+                        </div>
+                    `;
+                    generateBtn.disabled = false;
+                    generateBtn.textContent = '📝 Generate Final Report';
+                }
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                alertContainer.innerHTML = `
+                    <div class="alert alert-error">
+                        Error: ${error.message}
+                    </div>
+                `;
+                generateBtn.disabled = false;
+                generateBtn.textContent = '📝 Generate Final Report';
+            });
+        }
+    </script>
+</body>
+</html>
